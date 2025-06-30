@@ -1,172 +1,89 @@
 package cl.duoc.MicroservicioSucursales.Controller;
 
-import java.util.List;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-
+import cl.duoc.MicroservicioSucursales.Assembler.SucursalAssembler;
 import cl.duoc.MicroservicioSucursales.DTO.SucursalDTO;
 import cl.duoc.MicroservicioSucursales.Model.Sucursal;
 import cl.duoc.MicroservicioSucursales.Service.SucursalService;
-import cl.duoc.MicroservicioSucursales.Assembler.SucursalAssembler;
 
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.tags.Tag;
-import io.swagger.v3.oas.annotations.parameters.RequestBody;
 import io.swagger.v3.oas.annotations.responses.*;
 import io.swagger.v3.oas.annotations.media.*;
 
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.hateoas.*;
+import org.springframework.http.*;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+import java.util.Optional;
+import java.util.stream.Collectors;
+
 @RestController
-@RequestMapping("api/v1/sucursales")
-@Tag(name = "Sucursal", description = "Gestión de sucursales")
+@RequestMapping("/api/v1/sucursales")
 public class SucursalController {
 
     @Autowired
     private SucursalService sucursalService;
 
-@GetMapping
-@Operation(summary = "Listar todas las sucursales registradas")
-@ApiResponse(responseCode = "200", description = "Listado exitoso de sucursales",
-    content = @Content(
-        mediaType = "application/json",
-        schema = @Schema(implementation = SucursalDTO.class),
-        examples = @ExampleObject(
-            name = "Ejemplo de listado",
-            value = "[\n" +
-                    "  {\n" +
-                    "    \"nombre\": \"Sucursal Plaza Oeste\",\n" +
-                    "    \"direccion\": \"Av. Américo Vespucio 1501\",\n" +
-                    "    \"ciudad\": \"Cerrillos\",\n" +
-                    "    \"horarioApertura\": \"09:00\",\n" +
-                    "    \"horarioCierre\": \"18:00\",\n" +
-                    "    \"estado\": \"ACTIVA\"\n" +
-                    "  },\n" +
-                    "  {\n" +
-                    "    \"nombre\": \"Sucursal La Reina\",\n" +
-                    "    \"direccion\": \"Av. Príncipe de Gales 5555\",\n" +
-                    "    \"ciudad\": \"La Reina\",\n" +
-                    "    \"horarioApertura\": \"10:00\",\n" +
-                    "    \"horarioCierre\": \"19:00\",\n" +
-                    "    \"estado\": \"ACTIVA\"\n" +
-                    "  }\n" +
-                    "]"
-        )
-    )
-)
-public ResponseEntity<List<SucursalDTO>> listar() {
-    List<SucursalDTO> lista = sucursalService.listarSucursales()
-        .stream()
-        .map(SucursalAssembler::toDto)
-        .toList();
+    @Autowired
+    private SucursalAssembler sucursalAssembler;
 
-    return ResponseEntity.ok(lista);
-}
+    @Operation(summary = "Obtener todas las sucursales")
+    @ApiResponse(responseCode = "200", description = "Listado de sucursales")
+    @GetMapping
+    public CollectionModel<EntityModel<SucursalDTO>> obtenerTodas() {
+        List<EntityModel<SucursalDTO>> sucursales = sucursalService.obtenerTodas().stream()
+                .map(sucursalAssembler::toModel)
+                .collect(Collectors.toList());
+        return CollectionModel.of(sucursales);
+    }
 
+    @Operation(summary = "Buscar sucursal por ID")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Sucursal encontrada",
+            content = @Content(schema = @Schema(implementation = SucursalDTO.class))),
+        @ApiResponse(responseCode = "404", description = "Sucursal no encontrada")
+    })
+    @GetMapping("/{id}")
+    public ResponseEntity<EntityModel<SucursalDTO>> buscarPorId(@PathVariable Long id) {
+        Optional<Sucursal> sucursal = sucursalService.buscarPorId(id);
+        return sucursal.map(s -> ResponseEntity.ok(sucursalAssembler.toModel(s)))
+                .orElse(ResponseEntity.notFound().build());
+    }
 
-@GetMapping("/{id}")
-@Operation(summary = "Obtener sucursal por ID")
-@ApiResponse(responseCode = "200", description = "Sucursal encontrada",
-    content = @Content(
-        mediaType = "application/json",
-        schema = @Schema(implementation = SucursalDTO.class),
-        examples = @ExampleObject(
-            name = "Ejemplo personalizado",
-            value = "{\n  \"nombre\": \"Sucursal Ñuñoa\",\n  \"direccion\": \"Av. Grecia 123\",\n  \"ciudad\": \"Ñuñoa\",\n  \"horarioApertura\": \"10:00\",\n  \"horarioCierre\": \"20:00\",\n  \"estado\": \"ACTIVA\"\n}"
-        )
-    )
-)
-public ResponseEntity<SucursalDTO> obtener(@PathVariable Long id) {
-    Sucursal sucursal = sucursalService.obtenerSucursal(id);
-    SucursalDTO dto = SucursalAssembler.toDto(sucursal);
-    return ResponseEntity.ok(dto);
-}
+    @Operation(summary = "Buscar sucursal por nombre")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Sucursal encontrada",
+            content = @Content(schema = @Schema(implementation = SucursalDTO.class))),
+        @ApiResponse(responseCode = "404", description = "Sucursal no encontrada")
+    })
+    @GetMapping("/nombre/{nombre}")
+    public ResponseEntity<EntityModel<SucursalDTO>> buscarPorNombre(@PathVariable String nombre) {
+        Optional<Sucursal> sucursal = sucursalService.buscarPorNombre(nombre);
+        return sucursal.map(s -> ResponseEntity.ok(sucursalAssembler.toModel(s)))
+                .orElse(ResponseEntity.notFound().build());
+    }
 
-@PostMapping
-@Operation(summary = "Crear una nueva sucursal")
-@ApiResponse(responseCode = "200", description = "Sucursal creada exitosamente",
-    content = @Content(
-        mediaType = "application/json",
-        schema = @Schema(implementation = SucursalDTO.class),
-        examples = @ExampleObject(
-            name = "Ejemplo: Sucursal creada EXITOSAMENTE",
-            value = "{\n" +
-                    "  \"nombre\": \"Sucursal Maipú\",\n" +
-                    "  \"direccion\": \"Av. Pajaritos 1234\",\n" +
-                    "  \"ciudad\": \"Maipú\",\n" +
-                    "  \"horarioApertura\": \"09:00\",\n" +
-                    "  \"horarioCierre\": \"18:30\",\n" +
-                    "  \"estado\": \"ACTIVA\"\n" +
-                    "}"
-        )
-    )
-)
-@io.swagger.v3.oas.annotations.parameters.RequestBody(
-    description = "Datos para crear una sucursal",
-    required = true,
-    content = @Content(
-        mediaType = "application/json",
-        schema = @Schema(implementation = SucursalDTO.class),
-        examples = @ExampleObject(
-            name = "Ejemplo de solicitud Exitoso",
-            value = "{\n" +
-                    "  \"nombre\": \"Sucursal Maipú\",\n" +
-                    "  \"direccion\": \"Av. Pajaritos 1234\",\n" +
-                    "  \"ciudad\": \"Maipú\",\n" +
-                    "  \"horarioApertura\": \"09:00\",\n" +
-                    "  \"horarioCierre\": \"18:30\",\n" +
-                    "  \"estado\": \"En proceso...\"\n" +
-                    "}"
-        )
-    )
-)
-public ResponseEntity<SucursalDTO> crear(@RequestBody SucursalDTO sucursalDTO) {
-    Sucursal entidad = SucursalAssembler.toEntity(sucursalDTO);
-    Sucursal creada = sucursalService.crearSucursal(entidad);
-    SucursalDTO respuesta = SucursalAssembler.toDto(creada);
-    return ResponseEntity.ok(respuesta);
-}
-@PutMapping("/{id}")
-@Operation(summary = "Actualizar una sucursal existente")
-@ApiResponse(responseCode = "200", description = "Sucursal actualizada correctamente",
-    content = @Content(
-        mediaType = "application/json",
-        schema = @Schema(implementation = SucursalDTO.class),
-        examples = @ExampleObject(
-            name = "Ejemplo de respuesta",
-            value = "{\n" +
-                    "  \"nombre\": \"Sucursal Maipú (Actualizada)\",\n" +
-                    "  \"direccion\": \"Av. Pajaritos 1234\",\n" +
-                    "  \"ciudad\": \"Maipú\",\n" +
-                    "  \"horarioApertura\": \"09:00\",\n" +
-                    "  \"horarioCierre\": \"19:00\",\n" +
-                    "  \"estado\": \"ACTIVA\"\n" +
-                    "}"
-        )
-    )
-)
-@io.swagger.v3.oas.annotations.parameters.RequestBody(
-    description = "Datos actualizados de la sucursal",
-    required = true,
-    content = @Content(
-        mediaType = "application/json",
-        schema = @Schema(implementation = SucursalDTO.class),
-        examples = @ExampleObject(
-            name = "Ejemplo de solicitud",
-            value = "{\n" +
-                    "  \"nombre\": \"Sucursal Maipú \",\n" +
-                    "  \"direccion\": \"Av. Pajaritos 1234\",\n" +
-                    "  \"ciudad\": \"Maipú\",\n" +
-                    "  \"horarioApertura\": \"10:00\",\n" +
-                    "  \"horarioCierre\": \"20:00\",\n" +
-                    "  \"estado\": \"INACTIVA\"\n" +
-                    "}"
-        )
-    )
-)
-public ResponseEntity<SucursalDTO> actualizar(@PathVariable Long id, @RequestBody SucursalDTO sucursalDTO) {
-    Sucursal entidad = SucursalAssembler.toEntity(sucursalDTO);
-    Sucursal actualizada = sucursalService.actualizarSucursal(id, entidad);
-    SucursalDTO respuesta = SucursalAssembler.toDto(actualizada);
-    return ResponseEntity.ok(respuesta);
-}
+    @Operation(summary = "Crear nueva sucursal")
+    @ApiResponse(responseCode = "201", description = "Sucursal creada correctamente",
+        content = @Content(schema = @Schema(implementation = SucursalDTO.class)))
+    @PostMapping
+    public ResponseEntity<EntityModel<SucursalDTO>> crear(@RequestBody Sucursal sucursal) {
+        Sucursal creada = sucursalService.guardar(sucursal);
+        return ResponseEntity.status(HttpStatus.CREATED).body(sucursalAssembler.toModel(creada));
+    }
+
+    @Operation(summary = "Actualizar sucursal existente")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Sucursal actualizada",
+            content = @Content(schema = @Schema(implementation = SucursalDTO.class))),
+        @ApiResponse(responseCode = "404", description = "Sucursal no encontrada")
+    })
+    @PutMapping("/{id}")
+    public ResponseEntity<EntityModel<SucursalDTO>> actualizar(@PathVariable Long id, @RequestBody Sucursal sucursal) {
+        Optional<Sucursal> actualizada = sucursalService.actualizar(id, sucursal);
+        return actualizada.map(s -> ResponseEntity.ok(sucursalAssembler.toModel(s)))
+                .orElse(ResponseEntity.notFound().build());
+    }
+
 }

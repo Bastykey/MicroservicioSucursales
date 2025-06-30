@@ -1,29 +1,31 @@
 package cl.duoc.MicroservicioSucursales.Assembler;
 
+import cl.duoc.MicroservicioSucursales.Controller.SucursalController;
 import cl.duoc.MicroservicioSucursales.DTO.SucursalDTO;
 import cl.duoc.MicroservicioSucursales.Model.Sucursal;
 
-public class SucursalAssembler {
+import org.springframework.hateoas.EntityModel;
+import org.springframework.hateoas.server.RepresentationModelAssembler;
+import org.springframework.hateoas.server.mvc.WebMvcLinkBuilder;
+import org.springframework.stereotype.Component;
 
-    public static SucursalDTO toDto(Sucursal entidad) {
-        SucursalDTO dto = new SucursalDTO();
-        dto.setNombre(entidad.getNombre());
-        dto.setDireccion(entidad.getDireccion());
-        dto.setCiudad(entidad.getCiudad());
-        dto.setHorarioApertura(entidad.getHorarioApertura());
-        dto.setHorarioCierre(entidad.getHorarioCierre());
-        dto.setEstado(entidad.getEstado().name());
-        return dto;
-    }
+@Component
+public class SucursalAssembler implements RepresentationModelAssembler<Sucursal, EntityModel<SucursalDTO>> {
 
-    public static Sucursal toEntity(SucursalDTO dto) {
-        Sucursal entidad = new Sucursal();
-        entidad.setNombre(dto.getNombre());
-        entidad.setDireccion(dto.getDireccion());
-        entidad.setCiudad(dto.getCiudad());
-        entidad.setHorarioApertura(dto.getHorarioApertura());
-        entidad.setHorarioCierre(dto.getHorarioCierre());
-        entidad.setEstado(Enum.valueOf(cl.duoc.MicroservicioSucursales.Model.EstadoSucursal.class, dto.getEstado()));
-        return entidad;
+    @Override
+    public EntityModel<SucursalDTO> toModel(Sucursal sucursal) {
+        SucursalDTO dto = new SucursalDTO(
+                sucursal.getId(),
+                sucursal.getNombre(),
+                sucursal.getDireccion(),
+                sucursal.getComuna(),
+                sucursal.getTelefono()
+        );
+
+        return EntityModel.of(dto,
+                WebMvcLinkBuilder.linkTo(WebMvcLinkBuilder.methodOn(SucursalController.class)
+                        .buscarPorId(sucursal.getId())).withSelfRel(),
+                WebMvcLinkBuilder.linkTo(WebMvcLinkBuilder.methodOn(SucursalController.class)
+                        .obtenerTodas()).withRel("sucursales"));
     }
 }
